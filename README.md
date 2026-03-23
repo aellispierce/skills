@@ -91,6 +91,11 @@ npx skills@latest add aellispierce/skills/setup-pre-commit
 npx skills@latest add aellispierce/skills/git-guardrails-claude-code
 ```
 
+**setup-ralph** — Set up Ralph Wiggum autonomous coding loop scripts in ./plans/. Creates ralph.sh (multi-iteration AFK loop) and ralph-once.sh (single interactive HITL run), both wired to GitHub issues as the task source. 
+
+```
+npx skills@latest add aellispierce/skills/setup-ralph
+```
 ---
 
 ## Writing & Knowledge
