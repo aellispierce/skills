@@ -1,91 +1,92 @@
 ---
 name: setup-pre-commit
-description: Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when user wants to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing.
+description: Set up Lefthook pre-commit hooks with RuboCop (on staged files) and RSpec (on push) in the current repo. Use when user wants to add pre-commit hooks, set up Lefthook, run RuboCop before commits, or run tests before pushing.
 ---
 
 # Setup Pre-Commit Hooks
 
 ## What This Sets Up
 
-- **Husky** pre-commit hook
-- **lint-staged** running Prettier on all staged files
-- **Prettier** config (if missing)
-- **typecheck** and **test** scripts in the pre-commit hook
+- **Lefthook** git hooks manager
+- **RuboCop** running on staged `.rb` files at pre-commit
+- **RSpec** running on staged spec files at pre-commit, and the full suite at pre-push
 
 ## Steps
 
-### 1. Detect package manager
+### 1. Install Lefthook
 
-Check for `package-lock.json` (npm), `pnpm-lock.yaml` (pnpm), `yarn.lock` (yarn), `bun.lockb` (bun). Use whichever is present. Default to npm if unclear.
+Check how the project is set up:
 
-### 2. Install dependencies
+- If there's a `Gemfile`, add lefthook as a dev dependency and install via Bundler:
 
-Install as devDependencies:
+  ```ruby
+  # Gemfile
+  group :development do
+    gem "lefthook"
+  end
+  ```
 
+  ```bash
+  bundle install
+  ```
+
+- Otherwise, install via Homebrew:
+
+  ```bash
+  brew install lefthook
+  ```
+
+### 2. Create `lefthook.yml`
+
+Create this file in the repo root:
+
+```yaml
+pre-commit:
+  commands:
+    rubocop:
+      glob: "*.rb"
+      run: bundle exec rubocop --force-exclusion {staged_files}
+    rspec:
+      glob: "spec/**/*_spec.rb"
+      run: bundle exec rspec {staged_files}
+
+pre-push:
+  commands:
+    rspec:
+      run: bundle exec rspec
 ```
-husky lint-staged prettier
-```
 
-### 3. Initialize Husky
+**Adapt**:
+- If the repo has no RSpec setup, omit both `rspec` entries and tell the user.
+- If the repo has no RuboCop setup, omit the `rubocop` command and tell the user.
+- `{staged_files}` will be empty if no spec files are staged at commit time — in that case the pre-commit RSpec run is a no-op, which is fine.
+
+### 3. Install the hooks
 
 ```bash
-npx husky init
+bundle exec lefthook install
 ```
 
-This creates `.husky/` dir and adds `prepare: "husky"` to package.json.
+This wires up the git hooks in `.git/hooks/`.
 
-### 4. Create `.husky/pre-commit`
+### 4. Verify
 
-Write this file (no shebang needed for Husky v9+):
+- [ ] `lefthook.yml` exists in repo root
+- [ ] Run `bundle exec lefthook run pre-commit` to verify RuboCop and RSpec work
+- [ ] Run `bundle exec lefthook run pre-push` to verify RSpec works
 
-```
-npx lint-staged
-npm run typecheck
-npm run test
-```
+### 5. Commit
 
-**Adapt**: Replace `npm` with detected package manager. If repo has no `typecheck` or `test` script in package.json, omit those lines and tell the user.
-
-### 5. Create `.lintstagedrc`
-
-```json
-{
-  "*": "prettier --ignore-unknown --write"
-}
-```
-
-### 6. Create `.prettierrc` (if missing)
-
-Only create if no Prettier config exists. Use these defaults:
-
-```json
-{
-  "useTabs": false,
-  "tabWidth": 2,
-  "printWidth": 80,
-  "singleQuote": false,
-  "trailingComma": "es5",
-  "semi": true,
-  "arrowParens": "always"
-}
-```
-
-### 7. Verify
-
-- [ ] `.husky/pre-commit` exists and is executable
-- [ ] `.lintstagedrc` exists
-- [ ] `prepare` script in package.json is `"husky"`
-- [ ] `prettier` config exists
-- [ ] Run `npx lint-staged` to verify it works
-
-### 8. Commit
-
-Stage all changed/created files and commit with message: `Add pre-commit hooks (husky + lint-staged + prettier)`
+Stage all changed/created files and commit with message: `Add pre-commit hooks (lefthook + rubocop + rspec)`
 
 This will run through the new pre-commit hooks — a good smoke test that everything works.
 
 ## Notes
 
-- Husky v9+ doesn't need shebangs in hook files
-- `prettier --ignore-unknown` skips files Prettier can't parse (images, etc.)
-- The pre-commit runs lint-staged first (fast, staged-only), then full typecheck and tests
+- `{staged_files}` passes only staged files to each command, keeping pre-commit fast
+- `--force-exclusion` ensures RuboCop respects any `Exclude` rules in `.rubocop.yml`
+- Pre-commit RSpec only runs staged spec files — fast feedback on what you just touched
+- Pre-push runs the full suite — catches anything you might have missed before code leaves your machine
+- If no spec files are staged at commit time, the pre-commit RSpec step is a no-op
+- `lefthook.yml` should be committed to the repo so the whole team gets the same hooks
+- Lefthook can also be installed globally via `brew install lefthook` if you don't want it in the Gemfile
